@@ -29,7 +29,7 @@ export function prompt<T> (ui: UIBuilder, opts: prompt_options<T>) {
 
   ui.create("span", undefined, "prompt-title").textContent(opts.title).mount(f);
 
-  let keyInputMap = new Map<string, HTMLInputElement>();
+  let keyInputMap = new Map<string, HTMLInputElement|HTMLSelectElement>();
 
   for (let opt of opts.config) {
     ui.create("div", `prompt-opt-${opt.key}`, "prompt-opt").mount(f);
@@ -37,10 +37,53 @@ export function prompt<T> (ui: UIBuilder, opts: prompt_options<T>) {
 
     ui.create("span", undefined, "prompt-opt-label").textContent(opt.label||opt.key).mount(p);
 
-    ui.create("input", undefined, "prompt-opt-input").mount(p);
-    let inp = ui.e as HTMLInputElement;
+    let optElement: HTMLInputElement|HTMLSelectElement;
+    
+    if (opt.type === "select") {
+      ui.create("select", undefined, "prompt-opt-select").mount(p);
+      let s = ui.e as HTMLSelectElement;
+      
+      let i=0;
+      for (let value of opt.select) {
+        let ii = i; //inner ref to i
+        i++;
 
-    keyInputMap.set(opt.key, inp);
+        ui.create("option", undefined, "prompt-opt-option").mount(s);
+        let o = ui.e as HTMLOptionElement;
+        o.value = ii.toString();
+        o.textContent = value;
+      }
+      optElement = s;
+    } else {
+      ui.create("input", undefined, "prompt-opt-input").mount(p);
+      let inp = ui.e as HTMLInputElement;
+      
+      switch (opt.type) {
+        case "boolean":
+          inp.type = "checkbox";
+          inp.value = opt.default.toString();
+          break;
+        case "color":
+          inp.type = "color";
+          inp.value = opt.default.toString();
+          break;
+        case "number":
+          inp.type = "number";
+          inp.value = opt.default.toString();
+          break;
+        case "string":
+          inp.type = "text";
+          inp.value = opt.default.toString();
+          break;
+        case "color":
+          inp.type = "color";
+          inp.value = opt.default.toString();
+      }
+      optElement = inp;
+    }
+
+
+    keyInputMap.set(opt.key, optElement);
   }
 
   ui.create("div", undefined, "prompt-buttons").mount(f);
@@ -60,7 +103,23 @@ export function prompt<T> (ui: UIBuilder, opts: prompt_options<T>) {
     let result: T = {} as any;
 
     for (let [k, v] of keyInputMap) {
-      result[k] = v.value;
+      let value = v.value as any;
+
+      if (v instanceof HTMLSelectElement) {
+        value = Number.parseInt(value);
+      } else {
+        switch (v.type) {
+          case "number":
+            value = Number.parseFloat(value);
+            console.log("num or sel", value);
+            break;
+          case "checkbox":
+            value = value ? true : false;
+            break;
+        }
+      }
+
+      result[k] = value;
     }
 
     opts.cb(result);

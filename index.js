@@ -9,6 +9,14 @@ var ImportOptionsMode;
   ImportOptionsMode[ImportOptionsMode["remove"] = 1] = "remove";
 })(ImportOptionsMode || (ImportOptionsMode = {}));
 
+var ImportOptionsDuplicate;
+
+(function (ImportOptionsDuplicate) {
+  ImportOptionsDuplicate[ImportOptionsDuplicate["keep"] = 0] = "keep";
+  ImportOptionsDuplicate[ImportOptionsDuplicate["replace"] = 1] = "replace";
+  ImportOptionsDuplicate[ImportOptionsDuplicate["ask"] = 2] = "ask";
+})(ImportOptionsDuplicate || (ImportOptionsDuplicate = {}));
+
 async function main() {
   let ui = new UIBuilder(); //use flex for everything
 
@@ -81,7 +89,7 @@ async function main() {
     ".prompt-opt-label": {
       alignSelf: "center"
     },
-    ".prompt-opt-input": {
+    ".prompt-opt-input, .prompt-opt-select": {
       backgroundColor: "transparent",
       color: "inherit",
       borderStyle: "solid",
@@ -89,7 +97,8 @@ async function main() {
       borderColor: "black",
       maxWidth: "60%",
       marginLeft: "auto",
-      borderRadius: "2em"
+      borderRadius: "2em",
+      height: "2.5em"
     },
     ".prompt-buttons": {
       marginTop: "auto",
@@ -170,7 +179,9 @@ async function main() {
       prompt(ui, {
         title: "Import Options",
         submitButtonText: "Import",
-        cb: config => {},
+        cb: config => {
+          console.log("Import config", config);
+        },
         config: [{
           key: "mode",
           label: "Mode",
@@ -198,12 +209,19 @@ async function main() {
       prompt(ui, {
         title: "Export Options",
         submitButtonText: "Export",
-        cb: config => {},
+        cb: config => {
+          console.log("Export config", config);
+        },
         config: [{
           key: "validate",
           label: "Validate",
           default: true,
           type: "boolean"
+        }, {
+          key: "color",
+          label: "Favorite color",
+          default: "black",
+          type: "color"
         }]
       });
     }

@@ -8,9 +8,58 @@ export function prompt(ui, opts) {
     ui.create("div", `prompt-opt-${opt.key}`, "prompt-opt").mount(f);
     let p = ui.e;
     ui.create("span", undefined, "prompt-opt-label").textContent(opt.label || opt.key).mount(p);
-    ui.create("input", undefined, "prompt-opt-input").mount(p);
-    let inp = ui.e;
-    keyInputMap.set(opt.key, inp);
+    let optElement;
+
+    if (opt.type === "select") {
+      ui.create("select", undefined, "prompt-opt-select").mount(p);
+      let s = ui.e;
+      let i = 0;
+
+      for (let value of opt.select) {
+        let ii = i; //inner ref to i
+
+        i++;
+        ui.create("option", undefined, "prompt-opt-option").mount(s);
+        let o = ui.e;
+        o.value = ii.toString();
+        o.textContent = value;
+      }
+
+      optElement = s;
+    } else {
+      ui.create("input", undefined, "prompt-opt-input").mount(p);
+      let inp = ui.e;
+
+      switch (opt.type) {
+        case "boolean":
+          inp.type = "checkbox";
+          inp.value = opt.default.toString();
+          break;
+
+        case "color":
+          inp.type = "color";
+          inp.value = opt.default.toString();
+          break;
+
+        case "number":
+          inp.type = "number";
+          inp.value = opt.default.toString();
+          break;
+
+        case "string":
+          inp.type = "text";
+          inp.value = opt.default.toString();
+          break;
+
+        case "color":
+          inp.type = "color";
+          inp.value = opt.default.toString();
+      }
+
+      optElement = inp;
+    }
+
+    keyInputMap.set(opt.key, optElement);
   }
 
   ui.create("div", undefined, "prompt-buttons").mount(f);
@@ -23,7 +72,24 @@ export function prompt(ui, opts) {
     let result = {};
 
     for (let [k, v] of keyInputMap) {
-      result[k] = v.value;
+      let value = v.value;
+
+      if (v instanceof HTMLSelectElement) {
+        value = Number.parseInt(value);
+      } else {
+        switch (v.type) {
+          case "number":
+            value = Number.parseFloat(value);
+            console.log("num or sel", value);
+            break;
+
+          case "checkbox":
+            value = value ? true : false;
+            break;
+        }
+      }
+
+      result[k] = value;
     }
 
     opts.cb(result);
