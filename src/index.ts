@@ -1,8 +1,12 @@
 
 import { exponent, UIBuilder } from "@roguecircuitry/htmless";
+import { unzip } from "fflate";
+
 import { foldable } from "./ui/foldable.js";
 import { menuitem } from "./ui/menuitem.js";
 import { prompt } from "./ui/prompt.js";
+import { upload } from "./utils/file.js";
+import { TreeNode } from "./utils/pathtree.js";
 
 enum ImportOptionsMode {
   /** */
@@ -23,6 +27,8 @@ interface ImportOptionsResult {
 }
 
 async function main() {
+
+  //create an HTML builder
   let ui = new UIBuilder();
 
   //use flex for everything
@@ -41,8 +47,9 @@ async function main() {
         overflowY: "auto",
         backgroundColor: "#1f1f1f",
         cursor: "pointer",
-        maxHeight: "100%",
-        transition: "max-height 1s ease-in-out"
+        maxHeight: "100vh",
+        transition: "max-height 1s ease-in-out",
+        flexDirection: "column"
       },
       ".folded": {
         // maxHeight: "1em",
@@ -167,11 +174,16 @@ async function main() {
         color: "gray",
         backgroundColor: "#282828",
         height: "1em"
+      },
+
+      ".tree-tex-item": {
+        width: "33%",
+        imageRendering: "crisp-edges"
       }
     })
     .mount(document.head);
 
-  //cover page
+  //cover entire page
   ui.create("div", "content").mount(document.body)
   let content = ui.e as HTMLDivElement;
 
@@ -189,43 +201,100 @@ async function main() {
   ui.create("div", "menu-items").mount(menu);
   let menuItems = ui.e as HTMLDivElement;
 
+  let fileImportTree = new TreeNode<Uint8Array>();
+
   //populate menu items
-  menuitem(ui, {
-    title: "Import", cb: () => {
+  
+  //"import" menu item
+  menuitem(ui,
+    {
+      title: "Import", cb: () => { //when clicked
+        
+        //create and show a prompt
+        prompt<ImportOptionsResult>(ui, {
+          //get some import options
+          title: "Import Options",
+          submitButtonText: "Import",
+          
+          //options that show in prompt and are returned in JSON serializable objects
+          config: [
+            {
+              key: "mode",
+              label: "Mode",
+              default: ImportOptionsMode.add,
+              type: "select",
+              select: ["Add", "Erase"]
+            },
+            {
+              key: "duplicate",
+              label: "Duplicates",
+              default: 0,
+              type: "select",
+              select: ["Keep original", "Replace with imported", "Ask"]
+            },
+            {
+              key: "validate",
+              label: "Validate",
+              default: true,
+              type: "boolean"
+            }
+          ],
 
-      prompt<ImportOptionsResult>(ui, {
-        title: "Import Options",
-        submitButtonText: "Import",
-        cb: (config) => {
-          console.log("Import config", config);
-        },
-        config: [
-          {
-            key: "mode",
-            label: "Mode",
-            default: ImportOptionsMode.add,
-            type: "select",
-            select: ["Add", "Erase"]
-          },
-          {
-            key: "duplicate",
-            label: "Duplicates",
-            default: 0,
-            type: "select",
-            select: ["Keep original", "Replace with imported", "Ask"]
-          },
-          {
-            key: "validate",
-            label: "Validate",
-            default: true,
-            type: "boolean"
-          }
-        ]
-      });
+          //when submitted
+          cb: (config) => {
 
+            //show a file open prompt and get the file as an array buffer
+            upload("buffer").then((result) => {
+
+              //treat the file as a ZIP
+              unzip(new Uint8Array(result.contentBuffer), {}, (err, data) => {
+                if (err) {
+                  alert(`Chosen file may not be a ZIP, or has invalid/unknown formatting.. See error: "${err}"`);
+                  return;
+                }
+
+                //TODO - do something
+                for (let fname in data) {
+                  let fileData = data[fname];
+                  if (fileData && fileData.byteLength > 0) {
+                    fileImportTree.put(fname, fileData);
+                  }
+
+                  // ui.create("span", undefined, "tree-file-item")
+                  //   .textContent(path[path.length - 1])
+                  //   .style({ textIndent: `${path.length}em` })
+                  //   .mount(fileTree);
+                }
+
+                console.log(fileImportTree);
+
+                let texDir = fileImportTree.find("assets/minecraft/textures/blocks");
+                let blockTextureFnames = texDir.keys();
+
+                for (let blockTexFname of blockTextureFnames) {
+                  let texBin = texDir.get(blockTexFname);
+
+                  let texBlob = URL.createObjectURL(
+                    new Blob([texBin.buffer], { type: 'image/png' } /* (1) */)
+                  );
+
+                  ui.create("img", undefined, "tree-tex-item")
+                  .mount(texTree);
+                  let img = ui.e as HTMLImageElement;
+                  img.src = texBlob;
+                }
+
+              });
+
+            });
+          },
+        });
+
+      }
     }
-  }).mount(menuItems);
+  ).mount(menuItems);
 
+  //"export" menu item
   menuitem(ui, {
     title: "Export", cb: () => {
       prompt<ImportOptionsResult>(ui, {
@@ -233,6 +302,7 @@ async function main() {
         submitButtonText: "Export",
         cb: (config) => {
           console.log("Export config", config);
+
         },
         config: [
           {
@@ -257,7 +327,7 @@ async function main() {
   ui.create("div", "panels").mount(content);
   let panels = ui.e as HTMLDivElement;
 
-  //tree (foldable views)
+  //tree (foldable views parent)
   ui.create("div", "tree", "panel").mount(panels);
   let tree = ui.e as HTMLDivElement;
 
@@ -266,7 +336,11 @@ async function main() {
 
   //foldable views
   foldable(ui, { title: "Textures" }).mount(tree);
+  let texTree = ui.e;
   foldable(ui, { title: "Models" }).mount(tree);
+  let modelTree = ui.e;
+  foldable(ui, { title: "Files" }).mount(tree);
+  let fileTree = ui.e;
 
   //editor
   ui.create("div", "editor", "panel").mount(panels);

@@ -7,6 +7,9 @@ export interface foldableOptions {
 
 export function foldable (ui: UIBuilder, opts: foldableOptions) {  
   let f = ui.create("div", undefined, "foldable").e as HTMLDivElement;
+  
+  let bar = ui.create("div", undefined, "foldable-bar").mount(f).e as HTMLDivElement;
+  
   ui.on("click", (evt)=>{
     ui.ref(f);
     
@@ -19,8 +22,6 @@ export function foldable (ui: UIBuilder, opts: foldableOptions) {
     }
     ui.deref();
   });
-  
-  let bar = ui.create("div", undefined, "foldable-bar").mount(f).e as HTMLDivElement;
 
   ui.create("span", undefined, "foldable-title")
   .textContent(opts.title)
