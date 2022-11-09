@@ -1,9 +1,9 @@
 import { exponent, UIBuilder } from "@roguecircuitry/htmless";
-import { unzip } from "fflate";
-import { foldable } from "./ui/foldable.js";
+import { foldable, foldable_content } from "./ui/foldable.js";
 import { menuitem } from "./ui/menuitem.js";
 import { prompt } from "./ui/prompt.js";
-import { upload } from "./utils/file.js";
+import { styles } from "./ui/styles.js";
+import { blobImageSize, upload, unzip } from "./utils/file.js";
 import { TreeNode } from "./utils/pathtree.js";
 var ImportOptionsMode;
 
@@ -26,148 +26,8 @@ async function main() {
 
   ui.default(exponent); //create styles
 
-  ui.create("style", "respakgen-styles").style({
-    "body": {
-      backgroundColor: "#0f0f0f",
-      color: "white",
-      fontFamily: "'Courier New', Courier, monospace"
-    },
-    ".foldable": {
-      overflowY: "auto",
-      backgroundColor: "#1f1f1f",
-      cursor: "pointer",
-      maxHeight: "100vh",
-      transition: "max-height 1s ease-in-out",
-      flexDirection: "column"
-    },
-    ".folded": {
-      // maxHeight: "1em",
-      maxHeight: "1em"
-    },
-    ".foldable-bar": {
-      height: "1em",
-      backgroundColor: "#2f2f2f"
-    },
-    ".foldable-title": {
-      fontFamily: "courier",
-      textIndent: "1em"
-    },
-    ".foldable-arrow": {
-      width: "1em",
-      height: "1em",
-      transform: "translate(0%, 20%) rotate(90deg)",
-      transition: "transform 0.1s linear",
-      marginTop: "-0.1em",
-      marginLeft: "1em"
-    },
-    ".folded > div > .foldable-arrow": {
-      transform: "translate(25%, -10%) rotate(0deg)"
-    },
-    ".prompt": {
-      position: "absolute",
-      width: "50%",
-      height: "50%",
-      left: "25%",
-      top: "25%",
-      flexDirection: "column",
-      backgroundColor: "#333333e3",
-      padding: "1em",
-      borderRadius: "1em",
-      borderWidth: "1px",
-      borderStyle: "solid",
-      borderColor: "black"
-    },
-    ".prompt-title": {
-      textAlign: "center",
-      marginBottom: "auto"
-    },
-    ".prompt > .prompt-opt:nth-child(2n+1)": {
-      backgroundColor: "#2d2c2c"
-    },
-    ".prompt-opt": {
-      maxHeight: "2em",
-      padding: "0.1em",
-      margin: "0.2em",
-      textIndent: "1em",
-      borderRadius: "2em"
-    },
-    ".prompt-opt-label": {
-      alignSelf: "center"
-    },
-    ".prompt-opt-input, .prompt-opt-select": {
-      backgroundColor: "transparent",
-      color: "inherit",
-      borderStyle: "solid",
-      borderWidth: "1px",
-      borderColor: "black",
-      maxWidth: "60%",
-      marginLeft: "auto",
-      borderRadius: "2em",
-      height: "2.5em"
-    },
-    ".prompt-buttons": {
-      marginTop: "auto",
-      //place at end of container
-      maxHeight: "2em"
-    },
-    ".prompt-submit, .prompt-cancel": {
-      backgroundColor: "#00000044",
-      color: "inherit",
-      maxHeight: "2em",
-      borderRadius: "1em",
-      marginLeft: "0.5em",
-      marginRight: "0.5em"
-    },
-    ".prompt-submit:hover": {
-      backgroundColor: "#5b795a87"
-    },
-    ".prompt-cancel:hover": {
-      backgroundColor: "#795a5a87"
-    },
-    "#content": {
-      flexDirection: "column"
-    },
-    ".panel": {
-      backgroundColor: "#2d2d2d",
-      borderColor: "#232222",
-      borderWidth: "1px",
-      borderStyle: "solid"
-    },
-    "#menu": {
-      flex: "1",
-      flexDirection: "column"
-    },
-    "#menu-items": {
-      flexDirection: "row"
-    },
-    ".menu-item": {
-      backgroundColor: "unset"
-    },
-    ".menu-item:hover": {
-      backgroundColor: "#00000044"
-    },
-    "#panels": {
-      flex: "15"
-    },
-    "#tree": {
-      flexDirection: "column",
-      flex: "1"
-    },
-    "#editor": {
-      flex: "2"
-    },
-    ".title": {
-      width: "100%",
-      textAlign: "center",
-      color: "gray",
-      backgroundColor: "#282828",
-      height: "1em"
-    },
-    ".tree-tex-item": {
-      width: "33%",
-      imageRendering: "crisp-edges"
-    }
-  }).mount(document.head); //cover entire page
+  styles(ui);
+  ui.mount(document.head); //cover entire page
 
   ui.create("div", "content").mount(document.body);
   let content = ui.e; //title of app
@@ -181,7 +41,8 @@ async function main() {
 
   ui.create("div", "menu-items").mount(menu);
   let menuItems = ui.e;
-  let fileImportTree = new TreeNode(); //populate menu items
+  let fileImportTree = new TreeNode();
+  let textDec = new TextDecoder(); //populate menu items
   //"import" menu item
 
   menuitem(ui, {
@@ -193,6 +54,7 @@ async function main() {
         //get some import options
         title: "Import Options",
         submitButtonText: "Import",
+        cancelButtonText: "Cancel",
         //options that show in prompt and are returned in JSON serializable objects
         config: [{
           key: "mode",
@@ -213,46 +75,72 @@ async function main() {
           type: "boolean"
         }],
         //when submitted
-        cb: config => {
-          //show a file open prompt and get the file as an array buffer
-          upload("buffer").then(result => {
-            //treat the file as a ZIP
-            unzip(new Uint8Array(result.contentBuffer), {}, (err, data) => {
-              if (err) {
-                alert(`Chosen file may not be a ZIP, or has invalid/unknown formatting.. See error: "${err}"`);
-                return;
-              } //TODO - do something
+        cb: async config => {
+          let zipBuffer = await upload("buffer");
+          let data = await unzip(zipBuffer.contentBuffer); //TODO - do something
 
+          for (let fname in data) {
+            let fileData = data[fname];
 
-              for (let fname in data) {
-                let fileData = data[fname];
+            if (fileData && fileData.byteLength > 0) {
+              fileImportTree.put(fname, fileData);
+            }
+          }
 
-                if (fileData && fileData.byteLength > 0) {
-                  fileImportTree.put(fname, fileData);
-                } // ui.create("span", undefined, "tree-file-item")
-                //   .textContent(path[path.length - 1])
-                //   .style({ textIndent: `${path.length}em` })
-                //   .mount(fileTree);
+          let texDir = fileImportTree.find("assets/minecraft/textures/blocks");
+          let blockTextureFnames = texDir.keys();
+          let isAnimation = false;
+          let frameTime = 1;
 
-              }
+          for (let blockTexFname of blockTextureFnames) {
+            if (blockTexFname.endsWith(".mcmeta")) continue;
+            isAnimation = false;
+            let mcmetaBin = texDir.get(`${blockTexFname}.mcmeta`);
 
-              console.log(fileImportTree);
-              let texDir = fileImportTree.find("assets/minecraft/textures/blocks");
-              let blockTextureFnames = texDir.keys();
+            if (mcmetaBin) {
+              try {
+                let mcmetaStr = textDec.decode(mcmetaBin);
+                let mcmeta = JSON.parse(mcmetaStr);
+                isAnimation = mcmeta.animation !== undefined;
 
-              for (let blockTexFname of blockTextureFnames) {
-                let texBin = texDir.get(blockTexFname);
-                let texBlob = URL.createObjectURL(new Blob([texBin.buffer], {
-                  type: 'image/png'
+                if (isAnimation) {
+                  frameTime = mcmeta.animation.frametime || 1;
+                } else {
+                  frameTime = 0;
                 }
-                /* (1) */
-                ));
-                ui.create("img", undefined, "tree-tex-item").mount(texTree);
-                let img = ui.e;
-                img.src = texBlob;
+              } catch (ex) {
+                console.warn(blockTexFname, ex);
               }
+            }
+
+            let texBin = texDir.get(blockTexFname);
+            let texBlob = URL.createObjectURL(new Blob([texBin.buffer], {
+              type: 'image/png'
+            }));
+            let texSize = await blobImageSize(texBlob);
+            ui.create("div", undefined, "tree-tex-item").mount(texTree);
+            let item = ui.e;
+            ui.create("div", undefined, "tree-tex-item-img").style({
+              backgroundImage: `url(${texBlob})`
             });
-          });
+            let img = ui.e;
+            ui.mount(item);
+
+            if (isAnimation) {
+              let steps = Math.floor(texSize.y / texSize.x);
+              let seconds = frameTime * (1 / 20) * steps;
+              ui.style({
+                animationTimingFunction: `steps(${steps})`,
+                animationDuration: `${seconds}s`,
+                animationName: "spritesheet",
+                animationIterationCount: "infinite",
+                animationDirection: "normal"
+              });
+              img.style.setProperty("--background-y-to", `${-4 * steps}em`);
+            }
+
+            ui.create("span", undefined, "tree-tex-item-label").textContent(blockTexFname).mount(item);
+          }
         }
       });
     }
@@ -293,15 +181,15 @@ async function main() {
   foldable(ui, {
     title: "Textures"
   }).mount(tree);
-  let texTree = ui.e;
+  let texTree = foldable_content(ui.e);
   foldable(ui, {
     title: "Models"
   }).mount(tree);
-  let modelTree = ui.e;
+  let modelTree = foldable_content(ui.e);
   foldable(ui, {
     title: "Files"
   }).mount(tree);
-  let fileTree = ui.e; //editor
+  let fileTree = foldable_content(ui.e); //editor
 
   ui.create("div", "editor", "panel").mount(panels);
   let editor = ui.e; //editor title

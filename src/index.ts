@@ -1,11 +1,11 @@
 
 import { exponent, UIBuilder } from "@roguecircuitry/htmless";
-import { unzip } from "fflate";
 
-import { foldable } from "./ui/foldable.js";
+import { foldable, foldable_content } from "./ui/foldable.js";
 import { menuitem } from "./ui/menuitem.js";
 import { prompt } from "./ui/prompt.js";
-import { upload } from "./utils/file.js";
+import { styles } from "./ui/styles.js";
+import { blobImageSize, upload, unzip } from "./utils/file.js";
 import { TreeNode } from "./utils/pathtree.js";
 
 enum ImportOptionsMode {
@@ -26,6 +26,16 @@ interface ImportOptionsResult {
   validate: boolean;
 }
 
+interface MCMetaAnimation {
+  frames?: number[];
+  frametime?: number;
+  interpolate?: boolean;
+}
+
+interface MCMeta {
+  animation?: MCMetaAnimation;
+}
+
 async function main() {
 
   //create an HTML builder
@@ -35,153 +45,8 @@ async function main() {
   ui.default(exponent);
 
   //create styles
-  ui.create("style", "respakgen-styles")
-    .style({
-      "body": {
-        backgroundColor: "#0f0f0f",
-        color: "white",
-        fontFamily: "'Courier New', Courier, monospace"
-      },
-
-      ".foldable": {
-        overflowY: "auto",
-        backgroundColor: "#1f1f1f",
-        cursor: "pointer",
-        maxHeight: "100vh",
-        transition: "max-height 1s ease-in-out",
-        flexDirection: "column"
-      },
-      ".folded": {
-        // maxHeight: "1em",
-        maxHeight: "1em"
-      },
-      ".foldable-bar": {
-        height: "1em",
-        backgroundColor: "#2f2f2f"
-      },
-      ".foldable-title": {
-        fontFamily: "courier",
-        textIndent: "1em",
-      },
-      ".foldable-arrow": {
-        width: "1em",
-        height: "1em",
-        transform: "translate(0%, 20%) rotate(90deg)",
-        transition: "transform 0.1s linear",
-        marginTop: "-0.1em",
-        marginLeft: "1em"
-      },
-      ".folded > div > .foldable-arrow": {
-        transform: "translate(25%, -10%) rotate(0deg)"
-      },
-
-      ".prompt": {
-        position: "absolute",
-        width: "50%",
-        height: "50%",
-        left: "25%",
-        top: "25%",
-        flexDirection: "column",
-        backgroundColor: "#333333e3",
-        padding: "1em",
-        borderRadius: "1em",
-        borderWidth: "1px",
-        borderStyle: "solid",
-        borderColor: "black"
-      },
-      ".prompt-title": {
-        textAlign: "center",
-        marginBottom: "auto"
-      },
-      ".prompt > .prompt-opt:nth-child(2n+1)": {
-        backgroundColor: "#2d2c2c"
-      },
-      ".prompt-opt": {
-        maxHeight: "2em",
-        padding: "0.1em",
-        margin: "0.2em",
-        textIndent: "1em",
-        borderRadius: "2em"
-      },
-      ".prompt-opt-label": {
-        alignSelf: "center"
-      },
-      ".prompt-opt-input, .prompt-opt-select": {
-        backgroundColor: "transparent",
-        color: "inherit",
-        borderStyle: "solid",
-        borderWidth: "1px",
-        borderColor: "black",
-        maxWidth: "60%",
-        marginLeft: "auto",
-        borderRadius: "2em",
-        height: "2.5em"
-      },
-      ".prompt-buttons": {
-        marginTop: "auto", //place at end of container
-        maxHeight: "2em"
-      },
-      ".prompt-submit, .prompt-cancel": {
-        backgroundColor: "#00000044",
-        color: "inherit",
-        maxHeight: "2em",
-        borderRadius: "1em",
-        marginLeft: "0.5em",
-        marginRight: "0.5em"
-      },
-      ".prompt-submit:hover": {
-        backgroundColor: "#5b795a87"
-      },
-      ".prompt-cancel:hover": {
-        backgroundColor: "#795a5a87"
-      },
-
-      "#content": {
-        flexDirection: "column"
-      },
-      ".panel": {
-        backgroundColor: "#2d2d2d",
-        borderColor: "#232222",
-        borderWidth: "1px",
-        borderStyle: "solid"
-      },
-      "#menu": {
-        flex: "1",
-        flexDirection: "column"
-      },
-      "#menu-items": {
-        flexDirection: "row"
-      },
-      ".menu-item": {
-        backgroundColor: "unset"
-      },
-      ".menu-item:hover": {
-        backgroundColor: "#00000044"
-      },
-      "#panels": {
-        flex: "15"
-      },
-      "#tree": {
-        flexDirection: "column",
-        flex: "1"
-      },
-      "#editor": {
-        flex: "2"
-      },
-      ".title": {
-        width: "100%",
-        textAlign: "center",
-        color: "gray",
-        backgroundColor: "#282828",
-        height: "1em"
-      },
-
-      ".tree-tex-item": {
-        width: "33%",
-        imageRendering: "crisp-edges"
-      }
-    })
-    .mount(document.head);
+  styles(ui);
+  ui.mount(document.head);
 
   //cover entire page
   ui.create("div", "content").mount(document.body)
@@ -203,19 +68,22 @@ async function main() {
 
   let fileImportTree = new TreeNode<Uint8Array>();
 
+  let textDec = new TextDecoder();
+
   //populate menu items
-  
+
   //"import" menu item
   menuitem(ui,
     {
       title: "Import", cb: () => { //when clicked
-        
+
         //create and show a prompt
         prompt<ImportOptionsResult>(ui, {
           //get some import options
           title: "Import Options",
           submitButtonText: "Import",
-          
+          cancelButtonText: "Cancel",
+
           //options that show in prompt and are returned in JSON serializable objects
           config: [
             {
@@ -241,52 +109,92 @@ async function main() {
           ],
 
           //when submitted
-          cb: (config) => {
+          cb: async (config) => {
 
-            //show a file open prompt and get the file as an array buffer
-            upload("buffer").then((result) => {
+            let zipBuffer = await upload("buffer");
+            let data = await unzip(zipBuffer.contentBuffer);
 
-              //treat the file as a ZIP
-              unzip(new Uint8Array(result.contentBuffer), {}, (err, data) => {
-                if (err) {
-                  alert(`Chosen file may not be a ZIP, or has invalid/unknown formatting.. See error: "${err}"`);
-                  return;
-                }
+            //TODO - do something
+            for (let fname in data) {
+              let fileData = data[fname];
+              if (fileData && fileData.byteLength > 0) {
+                fileImportTree.put(fname, fileData);
+              }
+            }
 
-                //TODO - do something
-                for (let fname in data) {
-                  let fileData = data[fname];
-                  if (fileData && fileData.byteLength > 0) {
-                    fileImportTree.put(fname, fileData);
+            let texDir = fileImportTree.find("assets/minecraft/textures/blocks");
+            let blockTextureFnames = texDir.keys();
+
+            let isAnimation = false;
+            let frameTime = 1;
+
+            for (let blockTexFname of blockTextureFnames) {
+              if (blockTexFname.endsWith(".mcmeta")) continue;
+
+              isAnimation = false;
+
+              let mcmetaBin = texDir.get(`${blockTexFname}.mcmeta`);
+              if (mcmetaBin) {
+                try {
+                  let mcmetaStr = textDec.decode(mcmetaBin);
+                  let mcmeta: MCMeta = JSON.parse(mcmetaStr);
+
+                  isAnimation = mcmeta.animation !== undefined;
+                  if (isAnimation) {
+                    frameTime = mcmeta.animation.frametime || 1;
+                  } else {
+                    frameTime = 0;
                   }
 
-                  // ui.create("span", undefined, "tree-file-item")
-                  //   .textContent(path[path.length - 1])
-                  //   .style({ textIndent: `${path.length}em` })
-                  //   .mount(fileTree);
+                } catch (ex) {
+                  console.warn(blockTexFname, ex);
                 }
+              }
 
-                console.log(fileImportTree);
+              let texBin = texDir.get(blockTexFname);
 
-                let texDir = fileImportTree.find("assets/minecraft/textures/blocks");
-                let blockTextureFnames = texDir.keys();
+              let texBlob = URL.createObjectURL(
+                new Blob([texBin.buffer], { type: 'image/png' })
+              );
 
-                for (let blockTexFname of blockTextureFnames) {
-                  let texBin = texDir.get(blockTexFname);
+              let texSize = await blobImageSize(texBlob);
 
-                  let texBlob = URL.createObjectURL(
-                    new Blob([texBin.buffer], { type: 'image/png' } /* (1) */)
-                  );
+              ui.create("div", undefined, "tree-tex-item")
+                .mount(texTree);
+              let item = ui.e as HTMLDivElement;
 
-                  ui.create("img", undefined, "tree-tex-item")
-                  .mount(texTree);
-                  let img = ui.e as HTMLImageElement;
-                  img.src = texBlob;
-                }
-
+              
+              ui.create("div", undefined, "tree-tex-item-img")
+              .style({
+                backgroundImage: `url(${texBlob})`
               });
+              let img = ui.e as HTMLDivElement;
+              ui.mount(item);
+              
+              
+              if (isAnimation) {
+                let steps = Math.floor(texSize.y / texSize.x);
+                
+                let seconds = (frameTime * (1/20)) * steps;
+                
+                ui.style({
+                  animationTimingFunction: `steps(${steps})`,
+                  animationDuration: `${seconds}s`,
+                  animationName: "spritesheet",
+                  animationIterationCount: "infinite",
+                  animationDirection: "normal"
+                });
 
-            });
+                img.style.setProperty("--background-y-to", `${-4 * steps}em`);
+              }
+
+
+              ui.create("span", undefined, "tree-tex-item-label")
+                .textContent(blockTexFname)
+                .mount(item);
+
+            }
+
           },
         });
 
@@ -336,11 +244,11 @@ async function main() {
 
   //foldable views
   foldable(ui, { title: "Textures" }).mount(tree);
-  let texTree = ui.e;
+  let texTree = foldable_content(ui.e);
   foldable(ui, { title: "Models" }).mount(tree);
-  let modelTree = ui.e;
+  let modelTree = foldable_content(ui.e);
   foldable(ui, { title: "Files" }).mount(tree);
-  let fileTree = ui.e;
+  let fileTree = foldable_content(ui.e);
 
   //editor
   ui.create("div", "editor", "panel").mount(panels);
