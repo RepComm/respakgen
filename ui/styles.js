@@ -147,7 +147,17 @@ export function styles(ui) {
     },
     ".tree-tex-item": {
       minHeight: "4em",
-      maxHeight: "4em"
+      maxHeight: "4em",
+      borderRadius: "0.5em",
+      overflow: "hidden",
+      backgroundColor: "#343434",
+      marginTop: "1px",
+      marginBottom: "1px",
+      marginLeft: "1em",
+      marginRight: "1em"
+    },
+    ".tree-tex-item:hover": {
+      backgroundColor: "#454545"
     },
     ".tree-tex-item-img": {
       minWidth: "4em",
