@@ -128,6 +128,9 @@ async function main() {
             let isAnimation = false;
             let frameTime = 1;
 
+            let fancyOffset = 0;
+            let fancyWait = 50;
+
             for (let blockTexFname of blockTextureFnames) {
               if (blockTexFname.endsWith(".mcmeta")) continue;
 
@@ -159,10 +162,23 @@ async function main() {
 
               let texSize = await blobImageSize(texBlob);
 
-              ui.create("div", undefined, "tree-tex-item")
-                .mount(texTree);
-              let item = ui.e as HTMLDivElement;
+              fancyOffset += fancyWait;
 
+              ui.create("div", undefined, "tree-tex-item");
+              
+              let item = ui.e as HTMLDivElement;
+              
+              setTimeout(()=>{
+
+                let prev = ui.e;
+                ui.ref(item);
+                ui.mount(texTree);
+                
+                ui.ref(prev);
+
+                // item.scrollIntoView({behavior: "smooth"});
+
+              }, fancyOffset);
               
               ui.create("div", undefined, "tree-tex-item-img")
               .style({

@@ -161,10 +161,27 @@ export function styles(ui: UIBuilder) {
         marginTop: "1px",
         marginBottom: "1px",
         marginLeft: "1em",
-        marginRight: "1em"
+        marginRight: "1em",
+        
+        animationName: "slidein",
+        animationDuration: "1s",
+        animationIterationCount: "1",
+        animationTimingFunction: "ease",
+
+        transitionProperty: "background-color",
+        transitionDuration: "1s",
+        
       },
       ".tree-tex-item:hover": {
         backgroundColor: "#454545"
+      },
+      "@keyframes slidein": {
+        from: {
+          transform: "translateX(-100%)"
+        },
+        to: {
+          transform: "translateX(0%)"
+        }
       },
 
       ".tree-tex-item-img": {
