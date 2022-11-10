@@ -94,10 +94,10 @@ async function main() {
           let fancyOffset = 0;
           let fancyWait = 50;
 
-          for (let blockTexFname of blockTextureFnames) {
-            if (blockTexFname.endsWith(".mcmeta")) continue;
+          for (let fname of blockTextureFnames) {
+            if (fname.endsWith(".mcmeta")) continue;
             isAnimation = false;
-            let mcmetaBin = texDir.get(`${blockTexFname}.mcmeta`);
+            let mcmetaBin = texDir.get(`${fname}.mcmeta`);
 
             if (mcmetaBin) {
               try {
@@ -111,11 +111,11 @@ async function main() {
                   frameTime = 0;
                 }
               } catch (ex) {
-                console.warn(blockTexFname, ex);
+                console.warn(fname, ex);
               }
             }
 
-            let texBin = texDir.get(blockTexFname);
+            let texBin = texDir.get(fname);
             let texBlob = URL.createObjectURL(new Blob([texBin.buffer], {
               type: 'image/png'
             }));
@@ -148,7 +148,20 @@ async function main() {
               img.style.setProperty("--background-y-to", `${-4 * steps}em`);
             }
 
-            ui.create("span", undefined, "tree-tex-item-label").textContent(blockTexFname).mount(item);
+            ui.create("span", undefined, "tree-tex-item-label").textContent(fname).mount(item);
+          }
+
+          let modelDir = fileImportTree.find("assets/minecraft/models");
+          let blockModelDir = modelDir.find("block");
+          let blockModelFnames = blockModelDir.keys();
+          let itemModelDr = modelDir.find("item");
+          let itemModelFnames = itemModelDr.keys();
+
+          for (let fname of blockModelFnames) {
+            let _data = blockModelDir.get(fname);
+
+            let str = textDec.decode(_data);
+            let block = JSON.parse(str);
           }
         }
       });

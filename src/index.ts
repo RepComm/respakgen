@@ -6,6 +6,7 @@ import { menuitem } from "./ui/menuitem.js";
 import { prompt } from "./ui/prompt.js";
 import { styles } from "./ui/styles.js";
 import { blobImageSize, upload, unzip } from "./utils/file.js";
+import { ModelJson, MCMeta } from "./utils/mc.js";
 import { TreeNode } from "./utils/pathtree.js";
 
 enum ImportOptionsMode {
@@ -24,16 +25,6 @@ interface ImportOptionsResult {
   mode: ImportOptionsMode;
   duplicate: ImportOptionsDuplicate;
   validate: boolean;
-}
-
-interface MCMetaAnimation {
-  frames?: number[];
-  frametime?: number;
-  interpolate?: boolean;
-}
-
-interface MCMeta {
-  animation?: MCMetaAnimation;
 }
 
 async function main() {
@@ -131,12 +122,12 @@ async function main() {
             let fancyOffset = 0;
             let fancyWait = 50;
 
-            for (let blockTexFname of blockTextureFnames) {
-              if (blockTexFname.endsWith(".mcmeta")) continue;
+            for (let fname of blockTextureFnames) {
+              if (fname.endsWith(".mcmeta")) continue;
 
               isAnimation = false;
 
-              let mcmetaBin = texDir.get(`${blockTexFname}.mcmeta`);
+              let mcmetaBin = texDir.get(`${fname}.mcmeta`);
               if (mcmetaBin) {
                 try {
                   let mcmetaStr = textDec.decode(mcmetaBin);
@@ -150,11 +141,11 @@ async function main() {
                   }
 
                 } catch (ex) {
-                  console.warn(blockTexFname, ex);
+                  console.warn(fname, ex);
                 }
               }
 
-              let texBin = texDir.get(blockTexFname);
+              let texBin = texDir.get(fname);
 
               let texBlob = URL.createObjectURL(
                 new Blob([texBin.buffer], { type: 'image/png' })
@@ -206,10 +197,26 @@ async function main() {
 
 
               ui.create("span", undefined, "tree-tex-item-label")
-                .textContent(blockTexFname)
+                .textContent(fname)
                 .mount(item);
 
             }
+
+
+            let modelDir = fileImportTree.find("assets/minecraft/models");
+            let blockModelDir = modelDir.find("block");
+            let blockModelFnames = blockModelDir.keys();
+            let itemModelDr = modelDir.find("item");
+            let itemModelFnames = itemModelDr.keys();
+
+            for (let fname of blockModelFnames) {
+              let data = blockModelDir.get(fname);
+              let str = textDec.decode(data);
+              let block = JSON.parse(str) as ModelJson;
+              
+              
+            }
+
 
           },
         });

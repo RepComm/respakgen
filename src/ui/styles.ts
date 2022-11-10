@@ -14,11 +14,11 @@ export function styles(ui: UIBuilder) {
         cursor: "pointer",
         flexDirection: "column",
         position: "relative",
-        transition: "max-height 1s ease-in-out",
-        maxHeight: "100%"
+        transition: "flex 1s ease-in-out",
+        flex: "1"
       },
       ".foldable.folded": {
-        maxHeight: "1em"
+        flex: "0"
       },
       ".foldable-content": {
         overflowY: "auto",
